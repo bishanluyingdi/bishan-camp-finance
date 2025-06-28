@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>碧山露营地财务管理系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #4a90e2;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #357ab8;
+        }
+        button.secondary {
+            background-color: #6c757d;
+        }
+        button.danger {
+            background-color: #dc3545;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .summary {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f1f1f1;
+            border: none;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab.active {
+            background-color: #4a90e2;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .login-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        .user-role {
+            margin-left: 10px;
+            padding: 3px 8px;
+            background-color: #4a90e2;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .hidden {
+            display: none;
+        }
+        .data-import-export {
+            margin: 20px 0;
+        }
+        .permission-denied {
+            color: #dc3545;
+            text-align: center;
+            padding: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录界面 -->
+    <div id="login-page" class="login-container">
+        <h2 class="login-title">碧山露营地财务管理系统</h2>
+        <div>
+            <label for="login-username">用户名:</label>
+            <input type="text" id="login-username" placeholder="请输入用户名">
+            
+            <label for="login-password">密码:</label>
+            <input type="password" id="login-password" placeholder="请输入密码">
+            
+            <button onclick="login()" style="width: 100%; margin-top: 15px;">登录</button>
+        </div>
+    </div>
+    
+    <!-- 主系统界面 -->
+    <div id="main-system" class="hidden">
+        <div class="header">
+            <h1>碧山露营地财务管理系统</h1>
+            <div class="user-info">
+                <span id="current-user">未登录</span>
+                <span id="current-role" class="user-role">未设置</span>
+                <button onclick="logout()" class="secondary">退出登录</button>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="openTab('transactions')">收支记录</button>
+            <button class="tab" onclick="openTab('advances')">预支款管理</button>
+            <button class="tab" onclick="openTab('summary')">财务概览</button>
+            <button class="tab" onclick="openTab('users')" id="users-tab" style="display:none;">用户管理</button>
+        </div>
+        
+        <!-- 收支记录 -->
+        <div id="transactions" class="tab-content active">
+            <h2>收支记录</h2>
+            <div class="section">
+                <label for="trans-date">日期:</label>
+                <input type="date" id="trans-date" required>
+                
+                <label for="trans-type">类型:</label>
+                <select id="trans-type">
+                    <option value="income">收入</option>
+                    <option value="expense">支出</option>
+                </select>
+                
+                <label for="trans-amount">金额:</label>
+                <input type="number" id="trans-amount" min="0" step="0.01" required>
+                
+                <label for="trans-description">描述:</label>
+                <input type="text" id="trans-description" placeholder="例如: 露营收入/购买物资支出">
+                
+                <button onclick="addTransaction()">添加记录</button>
+            </div>
+            
+            <div class="section">
+                <h3>收支记录表</h3>
+                <table id="transactions-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>类型</th>
+                            <th>金额</th>
+                            <th>描述</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 预支款管理 -->
+        <div id="advances" class="tab-content">
+            <h2>预支款管理</h2>
+            <div class="section">
+                <label for="advance-date">日期:</label>
+                <input type="date" id="advance-date" required>
+                
+                <label for="advance-employee">员工姓名:</label>
+                <input type="text" id="advance-employee" required>
+                
+                <label for="advance-amount">金额:</label>
+                <input type="number" id="advance-amount" min="0" step="0.01" required>
+                
+                <label for="advance-description">用途:</label>
+                <input type="text" id="advance-description" placeholder="例如: 购买物资">
+                
+                <button onclick="addAdvance()">添加预支</button>
+                <button onclick="addRepayment()">添加还款/冲销</button>
+            </div>
+            
+            <div class="section">
+                <h3>预支款记录表</h3>
+                <table id="advances-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>员工</th>
+                            <th>类型</th>
+                            <th>金额</th>
+                            <th>用途/备注</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 财务概览 -->
+        <div id="summary" class="tab-content">
+            <h2>财务概览</h2>
+            
+            <div class="section">
+                <h3>当前财务状况</h3>
+                <div class="summary">
+                    <p>当前余额: <span id="current-balance">0</span> 元</p>
+                    <p>总收入: <span id="total-income">0</span> 元</p>
+                    <p>总支出: <span id="total-expense">0</span> 元</p>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="financeChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>员工预支款情况</h3>
+                <table id="advance-summary-table">
+                    <thead>
+                        <tr>
+                            <th>员工</th>
+                            <th>预支总额</th>
+                            <th>已冲销/还款</th>
+                            <th>未冲销余额</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                
+                <div class="chart-container">
+                    <canvas id="advanceChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="section data-import-export">
+                <h3>数据备份与恢复</h3>
+                <button onclick="exportData()">导出数据(JSON)</button>
+                <button onclick="exportExcel()">导出Excel</button>
+                
+                <div style="margin-top: 20px;">
+                    <label for="file-import">选择备份文件(JSON):</label>
+                    <input type="file" id="file-import" accept=".json">
+                    <button onclick="importData()" class="secondary">导入数据</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 用户管理 (仅管理员可见) -->
+        <div id="users" class="tab-content">
+            <div id="user-management">
+                <h2>用户管理</h2>
+                
+                <div class="section">
+                    <h3>添加新用户</h3>
+                    <label for="new-username">用户名:</label>
+                    <input type="text" id="new-username" required>
+                    
+                    <label for="new-password">密码:</label>
+                    <input type="password" id="new-password" required>
+                    
+                    <label for="new-role">角色:</label>
+                    <select id="new-role">
+                        <option value="cashier">收银员</option>
+                        <option value="accountant">会计</option>
+                        <option value="treasurer">出纳</option>
+                        <option value="admin">管理员</option>
+                    </select>
+                    
+                    <button onclick="addUser()">添加用户</button>
+                </div>
+                
+                <div class="section">
+                    <h3>用户列表</h3>
+                    <table id="users-table">
+                        <thead>
+                            <tr>
+                                <th>用户名</th>
+                                <th>角色</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="user-permission-denied" class="permission-denied hidden">
+                <h3>权限不足</h3>
+                <p>只有管理员可以访问用户管理功能</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据存储
+        let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+        let advances = JSON.parse(localStorage.getItem('advances')) || [];
+        let users = JSON.parse(localStorage.getItem('users')) || [
+            { username: 'admin', password: 'admin123', role: 'admin', displayName: '系统管理员' },
+            { username: 'cashier1', password: 'cashier123', role: 'cashier', displayName: '收银员1' },
+            { username: 'accountant1', password: 'accountant123', role: 'accountant', displayName: '会计1' },
+            { username: 'treasurer1', password: 'treasurer123', role: 'treasurer', displayName: '出纳1' }
+        ];
+        
+        // 角色定义
+        const roles = {
+            admin: { name: '管理员', level: 4 },
+            treasurer: { name: '出纳', level: 3 },
+            accountant: { name: '会计', level: 2 },
+            cashier: { name: '收银员', level: 1 }
+        };
+        
+        // 当前用户信息
+        let currentUser = null;
+        let financeChart = null;
+        let advanceChart = null;
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            saveUsers(); // 确保默认用户存在
+            checkLoginStatus();
+            
+            // 设置默认日期为今天
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('trans-date').value = today;
+            document.getElementById('advance-date').value = today;
+        });
+        
+        // 检查登录状态
+        function checkLoginStatus() {
+            const loggedInUser = localStorage.getItem('currentUser');
+            if (loggedInUser) {
+                currentUser = JSON.parse(loggedInUser);
+                showMainSystem();
+            }
+        }
+        
+        // 显示主系统
+        function showMainSystem() {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('main-system').classList.remove('hidden');
+            
+            // 更新用户信息显示
+            document.getElementById('current-user').textContent = currentUser.displayName;
+            document.getElementById('current-role').textContent = roles[currentUser.role].name;
+            
+            // 根据权限显示/隐藏功能
+            if (currentUser.role === 'admin') {
+                document.getElementById('users-tab').style.display = 'inline-block';
+            }
+            
+            updateTransactionsTable();
+            updateAdvancesTable();
+            updateUsersTable();
+            updateSummary();
+        }
+        
+        // 登录
+        function login() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            const user = users.find(u => u.username === username && u.password === password);
+            if (user) {
+                currentUser = user;
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                showMainSystem();
+                
+                // 清空登录表单
+                document.getElementById('login-username').value = '';
+                document.getElementById('login-password').value = '';
+            } else {
+                alert('用户名或密码错误');
+            }
+        }
+        
+        // 退出登录
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            document.getElementById('login-page').classList.remove('hidden');
+            document.getElementById('main-system').classList.add('hidden');
+        }
+        
+        // 标签页切换
+        function openTab(tabName) {
+            const tabs = document.getElementsByClassName('tab');
+            const tabContents = document.getElementsByClassName('tab-content');
+            
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove('active');
+            }
+            
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+            
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            // 特殊处理用户管理标签页的权限检查
+            if (tabName === 'users' && currentUser.role !== 'admin') {
+                document.getElementById('user-management').classList.add('hidden');
+                document.getElementById('user-permission-denied').classList.remove('hidden');
+            } else if (tabName === 'users') {
+                document.getElementById('user-management').classList.remove('hidden');
+                document.getElementById('user-permission-denied').classList.add('hidden');
+            }
+        }
+        
+        // 添加收支记录
+        function addTransaction() {
+            if (!hasPermission('cashier')) {
+                alert('权限不足：只有收银员及以上角色可以添加收支记录');
+                return;
+            }
+            
+            const date = document.getElementById('trans-date').value;
+            const type = document.getElementById('trans-type').value;
+            const amount = parseFloat(document.getElementById('trans-amount').value);
+            const description = document.getElementById('trans-description').value;
+            
+            if (!date || isNaN(amount) || !description) {
+                alert('请填写完整信息');
+                return;
+            }
+            
+            const transaction = {
+                id: Date.now(),
+                date,
+                type,
+                amount,
+                description,
+                createdBy: currentUser.username
+            };
+            
+            transactions.push(transaction);
+            saveData();
+            updateTransactionsTable();
+            updateSummary();
+            
+            // 清空输入
+            document.getElementById('trans-amount').value = '';
+            document.getElementById('trans-description').value = '';
+        }
+        
+        // 添加预支
+        function addAdvance() {
+            if (!hasPermission('treasurer')) {
+                alert('权限不足：只有出纳及以上角色可以添加预支款');
+                return;
+            }
+            
+            const date = document.getElementById('advance-date').value;
+            const employee = document.getElementById('advance-employee').value;
+            const amount = parseFloat(document.getElementById('advance-amount').value);
+            const description = document.getElementById('advance-description').value;
+            
+            if (!date || !employee || isNaN(amount) || !description) {
+                alert('请填写完整信息');
+                return;
+            }
+            
+            const advance = {
+                id: Date.now(),
+                date,
+                employee,
+                type: '预支',
+                amount,
+                description,
+                createdBy: currentUser.username
+            };
+            
+            advances.push(advance);
+            saveData();
+            updateAdvancesTable();
+            updateSummary();
+            
+            // 清空输入
+            document.getElementById('advance-amount').value = '';
+            document.getElementById('advance-description').value = '';
+        }
+        
+        // 添加还款/冲销
+        function addRepayment() {
+            if (!hasPermission('treasurer')) {
+                alert('权限不足：只有出纳及以上角色可以添加还款/冲销');
+                return;
+            }
+            
+            const date = document.getElementById('advance-date').value;
+            const employee = document.getElementById('advance-employee').value;
+            const amount = parseFloat(document.getElementById('advance-amount').value);
+            const description = document.getElementById('advance-description').value || '还款/冲销';
+            
+            if (!date || !employee || isNaN(amount)) {
+                alert('请填写完整信息');
+                return;
+            }
+            
+            const repayment = {
+                id: Date.now(),
+                date,
+                employee,
+                type: '还款/冲销',
+                amount,
+                description,
+                createdBy: currentUser.username
+            };
+            
+            advances.push(repayment);
+            saveData();
+            updateAdvancesTable();
+            updateSummary();
+            
+            // 清空输入
+            document.getElementById('advance-amount').value = '';
+            document.getElementById('advance-description').value = '';
+        }
+        
+        // 添加用户
+        function addUser() {
+            const username = document.getElementById('new-username').value;
+            const password = document.getElementById('new-password').value;
+            const role = document.getElementById('new-role').value;
+            
+            if (!username || !password) {
+                alert('请填写完整信息');
+                return;
+            }
+            
+            if (users.some(u => u.username === username)) {
+                alert('用户名已存在');
+                return;
+            }
+            
+            const newUser = {
+                username,
+                password,
+                role,
+                displayName: username
+            };
+            
+            users.push(newUser);
+            saveUsers();
+            updateUsersTable();
+            
+            // 清空输入
+            document.getElementById('new-username').value = '';
+            document.getElementById('new-password').value = '';
+        }
+        
+        // 删除记录
+        function deleteRecord(type, id) {
+            if (!hasPermission('admin')) {
+                alert('权限不足：只有管理员可以删除记录');
+                return;
+            }
+            
+            if (confirm('确定要删除这条记录吗？')) {
+                if (type === 'transaction') {
+                    transactions = transactions.filter(t => t.id !== id);
+                } else if (type === 'advance') {
+                    advances = advances.filter(a => a.id !== id);
+                } else if (type === 'user') {
+                    // 不能删除当前登录用户
+                    const userToDelete = users.find(u => u.username === id);
+                    if (userToDelete && userToDelete.username === currentUser.username) {
+                        alert('不能删除当前登录的用户');
+                        return;
+                    }
+                    users = users.filter(u => u.username !== id);
+                    saveUsers();
+                    updateUsersTable();
+                    return;
+                }
+                saveData();
+                
+                if (type === 'transaction') {
+                    updateTransactionsTable();
+                } else if (type === 'advance') {
+                    updateAdvancesTable();
+                }
+                updateSummary();
+            }
+        }
+        
+        // 更新收支表格
+        function updateTransactionsTable() {
+            const tbody = document.querySelector('#transactions-table tbody');
+            tbody.innerHTML = '';
+            
+            // 按日期排序
+            const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            sortedTransactions.forEach(trans => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${trans.date}</td>
+                    <td>${trans.type === 'income' ? '收入' : '支出'}</td>
+                    <td>${trans.amount.toFixed(2)}</td>
+                    <td>${trans.description}</td>
+                    <td>
+                        ${hasPermission('admin') ? 
+                          `<button onclick="deleteRecord('transaction', ${trans.id})" class="danger">删除</button>` : 
+                          '--'}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // 更新预支款表格
+        function updateAdvancesTable() {
+            const tbody = document.querySelector('#advances-table tbody');
+            tbody.innerHTML = '';
+            
+            // 按日期排序
+            const sortedAdvances = [...advances].sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            sortedAdvances.forEach(adv => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${adv.date}</td>
+                    <td>${adv.employee}</td>
+                    <td>${adv.type}</td>
+                    <td>${adv.amount.toFixed(2)}</td>
+                    <td>${adv.description}</td>
+                    <td>
+                        ${hasPermission('admin') ? 
+                          `<button onclick="deleteRecord('advance', ${adv.id})" class="danger">删除</button>` : 
+                          '--'}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // 更新用户表格
+        function updateUsersTable() {
+            const tbody = document.querySelector('#users-table tbody');
+            tbody.innerHTML = '';
+            
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.username} (${user.displayName})</td>
+                    <td>${roles[user.role].name}</td>
+                    <td>
+                        ${hasPermission('admin') && user.username !== currentUser.username ? 
+                          `<button onclick="deleteRecord('user', '${user.username}')" class="danger">删除</button>` : 
+                          '--'}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // 更新财务概览
+        function updateSummary() {
+            // 计算收支
+            const totalIncome = transactions
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const totalExpense = transactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const balance = totalIncome - totalExpense;
+            
+            document.getElementById('current-balance').textContent = balance.toFixed(2);
+            document.getElementById('total-income').textContent = totalIncome.toFixed(2);
+            document.getElementById('total-expense').textContent = totalExpense.toFixed(2);
+            
+            // 更新财务图表
+            updateFinanceChart(totalIncome, totalExpense);
+            
+            // 计算预支款情况
+            const advanceSummary = {};
+            advances.forEach(adv => {
+                if (!advanceSummary[adv.employee]) {
+                    advanceSummary[adv.employee] = {
+                        advanced: 0,
+                        repaid: 0
+                    };
+                }
+                
+                if (adv.type === '预支') {
+                    advanceSummary[adv.employee].advanced += adv.amount;
+                } else {
+                    advanceSummary[adv.employee].repaid += adv.amount;
+                }
+            });
+            
+            const tbody = document.querySelector('#advance-summary-table tbody');
+            tbody.innerHTML = '';
+            
+            for (const employee in advanceSummary) {
+                const row = document.createElement('tr');
+                const outstanding = advanceSummary[employee].advanced - advanceSummary[employee].repaid;
+                
+                row.innerHTML = `
+                    <td>${employee}</td>
+                    <td>${advanceSummary[employee].advanced.toFixed(2)}</td>
+                    <td>${advanceSummary[employee].repaid.toFixed(2)}</td>
+                    <td>${outstanding.toFixed(2)}</td>
+                `;
+                tbody.appendChild(row);
+            }
+            
+            // 更新预支款图表
+            updateAdvanceChart(advanceSummary);
+        }
+        
+        // 更新财务图表
+        function updateFinanceChart(income, expense) {
+            const ctx = document.getElementById('financeChart').getContext('2d');
+            
+            if (financeChart) {
+                financeChart.destroy();
+            }
+            
+            financeChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['收入', '支出', '余额'],
+                    datasets: [{
+                        label: '金额 (元)',
+                        data: [income, expense, income - expense],
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(75, 192, 192, 0.5)'
+                        ],
+                        borderColor: [
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(75, 192, 192, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 更新预支款图表
+        function updateAdvanceChart(advanceSummary) {
+            const ctx = document.getElementById('advanceChart').getContext('2d');
+            const employees = Object.keys(advanceSummary);
+            const advancedData = employees.map(e => advanceSummary[e].advanced);
+            const repaidData = employees.map(e => advanceSummary[e].repaid);
+            const outstandingData = employees.map(e => advanceSummary[e].advanced - advanceSummary[e].repaid);
+            
+            if (advanceChart) {
+                advanceChart.destroy();
+            }
+            
+            advanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: employees,
+                    datasets: [
+                        {
+                            label: '预支总额',
+                            data: advancedData,
+                            backgroundColor: 'rgba(255, 159, 64, 0.5)',
+                            borderColor: 'rgba(255, 159, 64, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: '已冲销/还款',
+                            data: repaidData,
+                            backgroundColor: 'rgba(153, 102, 255, 0.5)',
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: '未冲销余额',
+                            data: outstandingData,
+                            backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 导出数据为JSON
+        function exportData() {
+            const data = {
+                transactions,
+                advances,
+                users,
+                summary: {
+                    balance: parseFloat(document.getElementById('current-balance').textContent),
+                    totalIncome: parseFloat(document.getElementById('total-income').textContent),
+                    totalExpense: parseFloat(document.getElementById('total-expense').textContent)
+                }
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `碧山露营地财务数据_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+        
+        // 导出数据为Excel
+        function exportExcel() {
+            // 创建工作簿
+            const wb = XLSX.utils.book_new();
+            
+            // 添加收支记录表
+            const transWS = XLSX.utils.json_to_sheet(transactions.map(t => ({
+                '日期': t.date,
+                '类型': t.type === 'income' ? '收入' : '支出',
+                '金额': t.amount,
+                '描述': t.description,
+                '创建人': t.createdBy || '未知'
+            })));
+            XLSX.utils.book_append_sheet(wb, transWS, "收支记录");
+            
+            // 添加预支款记录表
+            const advanceWS = XLSX.utils.json_to_sheet(advances.map(a => ({
+                '日期': a.date,
+                '员工': a.employee,
+                '类型': a.type,
+                '金额': a.amount,
+                '用途/备注': a.description,
+                '创建人': a.createdBy || '未知'
+            })));
+            XLSX.utils.book_append_sheet(wb, advanceWS, "预支款记录");
+            
+            // 添加汇总表
+            const advanceSummary = {};
+            advances.forEach(adv => {
+                if (!advanceSummary[adv.employee]) {
+                    advanceSummary[adv.employee] = { advanced: 0, repaid: 0 };
+                }
+                if (adv.type === '预支') {
+                    advanceSummary[adv.employee].advanced += adv.amount;
+                } else {
+                    advanceSummary[adv.employee].repaid += adv.amount;
+                }
+            });
+            
+            const summaryData = [];
+            for (const emp in advanceSummary) {
+                summaryData.push({
+                    '员工': emp,
+                    '预支总额': advanceSummary[emp].advanced,
+                    '已冲销/还款': advanceSummary[emp].repaid,
+                    '未冲销余额': advanceSummary[emp].advanced - advanceSummary[emp].repaid
+                });
+            }
+            
+            const summaryWS = XLSX.utils.json_to_sheet(summaryData);
+            XLSX.utils.book_append_sheet(wb, summaryWS, "预支款汇总");
+            
+            // 添加用户表
+            const usersWS = XLSX.utils.json_to_sheet(users.map(u => ({
+                '用户名': u.username,
+                '显示名称': u.displayName,
+                '角色': roles[u.role].name
+            })));
+            XLSX.utils.book_append_sheet(wb, usersWS, "用户列表");
+            
+            // 导出Excel文件
+            XLSX.writeFile(wb, `碧山露营地财务数据_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+        
+        // 导入数据
+        function importData() {
+            if (!hasPermission('admin')) {
+                alert('权限不足：只有管理员可以导入数据');
+                return;
+            }
+            
+            const fileInput = document.getElementById('file-import');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('请先选择文件');
+                return;
+            }
+            
+            if (!confirm('导入数据将覆盖当前所有数据，确定要继续吗？')) {
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (data.transactions) transactions = data.transactions;
+                    if (data.advances) advances = data.advances;
+                    if (data.users) users = data.users;
+                    
+                    saveData();
+                    saveUsers();
+                    
+                    updateTransactionsTable();
+                    updateAdvancesTable();
+                    updateUsersTable();
+                    updateSummary();
+                    
+                    alert('数据导入成功');
+                    fileInput.value = '';
+                } catch (error) {
+                    alert('导入失败：文件格式不正确');
+                    console.error(error);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // 保存数据到本地存储
+        function saveData() {
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            localStorage.setItem('advances', JSON.stringify(advances));
+        }
+        
+        // 保存用户数据
+        function saveUsers() {
+            localStorage.setItem('users', JSON.stringify(users));
+        }
+        
+        // 检查权限
+        function hasPermission(requiredRole) {
+            if (!currentUser) return false;
+            return roles[currentUser.role].level >= roles[requiredRole].level;
+        }
+    </script>
+</body>
+</html>
